@@ -1,0 +1,1001 @@
+---
+title: "Investigating US Diabetes Hospitalization"
+subtitle: "Ai Xu, Rui Yang, Yaguang Wei"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+  
+![zip code](http://www.diabetes.ie/wp-content/uploads/2014/09/Diabetes-Blackboard.jpg)
+
+<br />
+  
+## Study Motivation
+
+We were inspired by a previous workshop of diabetes, and also differential distribution and deficiency of Physician specialties (Dataset 3 as shwon below). Thus hope to combine these topics together, to study diabetes diagnosis characteristics in hospital.
+
+## Study Question
+
+1. What factors would influence doctor's diagnosis of diabetes? 
+2. Does physicians' own specialty have an effect on diagnosis? 
+3. What other factors would help a patient to be diagnosed of diabetes?
+4. What are the factors that could influence a patient's re-admission?  
+
+## Background
+
+Diabetes is a group of metabolic disease in which the body's inability to produce any or enough insulin casues elevated levels of glucose in the blood. The chronic hyperglycemia of diabetes is associated with long-term damage, dysfunction and failure of different organs, especially the eyes, kidneys, nerves, heart and blood vessels.
+
+There're mainly two types of diabetes, including Type I and Type II. 
+Type I diabetes is mainly an autoimmune destruction of beta-cells of the pancreas by T cells. Clinically antibodies to islet cells or insulin could be observed, and antibodies to glutamic acid decarboxylase (GAD) are present.
+Type II diabetes mainly has insulin resistance appear to be the primary lesion, and lead initially to increased insulin secretion (due to increased glucose). Eventually, depletion of islet cells would appear and insulin secretion may be reduced. 
+
+Introduction of diabetes pathophysiology could be found here (https://www.youtube.com/watch?v=C9XYnZdEIPE)
+
+In recent years, diabetes have become a major disease burden for most developing and developed countries. Based on current statistics from CDC (http://www.cdc.gov/diabetes/data/statistics/2014statisticsreport.html), currently there are 29.1 million people or 9.3% of the whole population suffering from diabetes in US. Within this population, 8.1 million people were not diagnosed. 
+
+Facing current situation, having a thourough understanding of disease from both disease pathology and population level is essential to eliminate disease burden. Translating and interpreting health data and improve health education would be very helpful. 
+
+## Introduction
+
+#### Study Goal
+
+Thus here we used some available dataset to analyze diabetes trends in order to have a better sense of diabetes diagnosis, hospital readmission, and its relationship with physician specialties. We also fitted some regression models and have a prediction of diagnosis and readmission behavior based on relevant variables. 
+
+#### Statistical Plan
+
+Our statistical plan include descriptive analysis and data visualization, regression analysis mainly focusing on primary diagnosis and hospital readmission.  
+a) Descriptive analysis: check variable distribution, correlation, missing value pattern and conduct univariate analysis
+b) Primary diagnosis:   
+Model Building: Logistic Regression (Backward Selection)  
+Model Assessment: Cross Validation, ROC  
+c) Hospital readmission:  
+Model Building: Logistic Regression (Backward Selection), LASSO (least absolute shrinkage and selection operator) Analysis  
+Model Assessment and Selection: Accuracy, ROC, AUC  
+  
+## Content
+
+1. Data Source and Preparation  
+2. Patients Admission and Diagnosis: Descriptive Analysis  
+ 2.1 Distribution of Medical Specialty Visited  
+ 2.2 Distribution of Age among Diagnosed   
+ 2.3 Association between Age and Diabetes Subtype  
+3. Patients Diagnosis and Readmission: Statistical Analysis  
+ 3.1 Exploratory Analysis  
+ 3.2 Prediction of Diabetes Primary Diagnosis  
+ 3.3 Prediction of Diabetes Readmission Prediction  
+4. Conclusion  
+5. Reference
+
+<br />
+  
+## 1. Data Source and Description
+
+Our dataset used in this study:  
+1. Diabetes 130-US hospitals for years 1999-2008 Data Set   (http://archive.ics.uci.edu/ml/datasets/Diabetes+130-US+hospitals+for+years+1999-2008)  
+This is the main dataset We used for analyzing diabetes diagnosis, readmission and physician specialty that patients visited.  
+2. Diabetes Incidence of US from CDC statistics (http://www.cdc.gov/diabetes/data/national.html)  
+This data was used to have a comparation with our statistics from hospital admission data.   
+3. Physician Distribution (https://data.medicare.gov/Physician-Compare/National-Downloadable-File/s63f-csi6)  
+
+Our primary dataset is the first one: Diabetes 130-US hospitals for years 1999-2008 Data Set. Before we start, let's see a detailed description of all the atrributes:  
+
+Feature name | Type | Description and values | % missing
+-------------|------|------------------------|-----------
+Encounter ID | Numeric | Unique identifier of an encounter | 0%
+Patient number | Numeric | Unique identifier of a patient | 0%
+Race | Nominal | Values: Caucasian, Asian, African American, Hispanic, and other | 2%
+Gender | Nominal | Values: male, female, and unknown/invalid | 0%
+Age | Nominal | Grouped in 10-year intervals: [0, 10), [10, 20), '...', [90, 100) | 0%
+Weight | Numeric | Weight in pounds | 97%
+Admission type | Nominal | Integer identifier corresponding to 9 distinct values, for example, emergency, urgent, elective, newborn, and not available | 0%
+Discharge disposition | Nominal | Integer identifier corresponding to 29 distinct values, for example, discharged to home, expired, and not available | 0%
+Admission source | Nominal | Integer identifier corresponding to 21 distinct values, for example, physician referral, emergency room, and transfer from a hospital | 0%
+Time in hospital | Numeric | Integer number of days between admission and discharge | 0%
+Payer code | Nominal | Integer identifier corresponding to 23 distinct values, for example, Blue Cross/Blue Shield, Medicare, and self-pay | 52%
+Medical specialty	| Nominal | Integer identifier of a specialty of the admitting physician, corresponding to 84 distinct values, for example, cardiology, internal medicine, family/general practice, and surgeon | 53%
+Number of lab procedures | Numeric | Number of lab tests performed during the encounter | 0%
+Number of procedures | Numeric | Number of procedures (other than lab tests) performed during the encounter | 0%
+Number of medications | Numeric | Number of distinct generic names administered during the encounter | 0%
+Number of outpatient visits | Numeric | Number of outpatient visits of the patient in the year preceding the encounter | 0%
+Number of emergency visits | Numeric | Number of emergency visits of the patient in the year preceding the encounter | 0%
+Number of inpatient visits | Numeric | Number of inpatient visits of the patient in the year preceding the encounter | 0%
+Diagnosis 1 | Nominal |	The primary diagnosis (coded as first three digits of ICD9); 848 distinct values | 0%
+Diagnosis 2	| Nominal |	Secondary diagnosis (coded as first three digits of ICD9); 923 distinct values | 0%
+Diagnosis 3	| Nominal	| Additional secondary diagnosis (coded as first three digits of ICD9); 954 distinct values |	1%
+Number of diagnoses	| Numeric |	Number of diagnoses entered to the system |	0%
+Glucose serum test result	| Nominal |	Indicates the range of the result or if the test was not taken. Values: '>200', '>300', 'normal', and 'none' if not measured | 0%
+A1c test result	| Nominal |	Indicates the range of the result or if the test was not taken. Values: '>8' if the result was greater than 8%, '>7' if the result was greater than 7% but less than 8%, 'normal' if the result was less than 7%, and 'none' if not measured. |	0%
+Change of medications	| Nominal |	Indicates if there was a change in diabetic medications (either dosage or generic name). Values: 'change' and 'no change'	| 0%
+Diabetes medications | Nominal | Indicates if there was any diabetic medication prescribed. Values: 'yes' and 'no' | 0%
+24 features for medications |	Nominal |	For the generic names: metformin, repaglinide, nateglinide, chlorpropamide, glimepiride, acetohexamide, glipizide, glyburide, tolbutamide, pioglitazone, rosiglitazone, acarbose, miglitol, troglitazone, tolazamide, examide, sitagliptin, insulin, glyburide-metformin, glipizide-metformin, glimepiride-pioglitazone, metformin-rosiglitazone, and metformin-pioglitazone, the feature indicates whether the drug was prescribed or there was a change in the dosage. Values: 'up' if the dosage was increased during the encounter, 'down' if the dosage was decreased, 'steady' if the dosage did not change, and 'no' if the drug was not prescribed | 0%
+Readmitted | Nominal | Days to inpatient readmission. Values: '<30' if the patient was readmitted in less than 30 days, '>30' if the patient was readmitted in more than 30 days, and 'No' for no record of readmission. | 0%
+
+<br />
+
+Now let's get the ball rolling!
+
+```{r,warning=FALSE,message=FALSE}
+# Load packages
+#setwd("C:/Users/yangr/BIO260_Data_Science/Final_Project")
+setwd("/Users/weiyg/Desktop/Study/Harvard/Spring 2016/BIO260/Final Project/Data/dataset_diabetes")
+#setwd("/Users/aixu/Desktop/HCourse/BIO260/dataset_diabetes")
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(broom)
+library(caret)
+library(gridExtra)
+library(ROCR)
+library(UsingR)
+library(corrplot)
+library(mice)
+library(VIM)
+library(FactoMineR)
+library(MASS)
+library(arm)
+library(glmnet)
+```
+
+Let's start with data cleaning and wrangling. First of all, we are gonna create age indicator variable "ageind", and filter two tables which indicate medical specialty and different types of diabetes.
+
+```{r,warning=FALSE}
+Diabetes<-read_csv("diabetic_data.csv")
+Diabetes$diag_1<-as.numeric(Diabetes$diag_1)
+
+# Create new variable "ageind"
+Diabetes <- mutate(Diabetes, ageind = ifelse(age=="[0-10)",5, 
+                                              ifelse(age=="[10-20)",15,
+                                                     ifelse(age=="[20-30)",25,
+                                                            ifelse(age=="[30-40)",35,
+                                                                   ifelse(age=="[40-50)",45,
+                                                                          ifelse(age=="[50-60)",55,
+                                                                                 ifelse(age=="[60-70)",65,
+                                                                                        ifelse(age=="[70-80)",75,
+                                                                                               ifelse(age=="[80-90)",85,95)))))))))
+)
+
+# Filter and only keep records with medical specialty
+Diabetes_small<-Diabetes %>% filter(medical_specialty!="?")
+
+# Based on the table obtained above, filter and only keep diagnosed diabetes patients (icd9: 250.xx), and create new variable of "diab_type" that indicates two types of diabetes
+Diabetes_small2<-Diabetes_small %>% filter(floor(diag_1)==250)
+Diabetes_small2<-Diabetes_small2 %>% mutate(diab_type="Type II")
+Diabetes_small2$diab_type[(Diabetes_small2$diag_1*100)%%2==1]<-"Type I"
+```
+
+Here in this dataset (Diabetes_small2), we have diagnosed diabetes data with all the variables including medical specialty and diabetes subtype.
+
+<br />
+
+## 2. Patients Admission and Diagnosis: Descriptive Analysis ##
+
+### 2.1 Distribution of Medical Specialty Visited
+
+Diabetes is a complex disease that would cause different symptoms. Thus people would visit different specialties when they came up with such uncomfortable. 
+
+Here using this medical admission data, let's check which department of medical specialty would patients visit most and seek for help. 
+
+```{r,warning=FALSE}
+admission<-Diabetes_small %>% group_by(medical_specialty) %>% 
+  summarise(n_admission=n()) %>% 
+  arrange(desc(n_admission))
+head(admission)
+admission %>% filter(n_admission>=100) %>%
+  ggplot(aes(x=medical_specialty,y=n_admission))+
+  geom_bar(stat="identity",aes(fill=factor(medical_specialty)))+
+  xlab("Medical Specialty")+
+  ylab("Number of Patients Admitted")+
+  ggtitle("Patient Frequency for Diabetes by Medical Specialty")+
+  theme(axis.text.x=element_text(angle = 45, hjust=1),legend.position="none")
+```
+
+For medical specialties that patients visited in hospital, most people would choose to visit Internal Medicine and Cardiology, as well as Family Practice and Emergency at specific circumstances. But whether Internal Medicine would have the highest diagnosis rate? We could check from following table. 
+
+```{r,warning=FALSE}
+diagnosis<-Diabetes_small2 %>% group_by(medical_specialty) %>% summarise(n_diagnosis=n()) %>% arrange(desc(n_diagnosis))
+distribution<-admission %>% left_join(diagnosis,by="medical_specialty")
+distribution<-distribution %>% mutate(diag_rate=n_diagnosis/n_admission) %>% arrange(desc(diag_rate))
+head(distribution)
+```
+
+Although most people go to Internal Medicine for diabetes symptoms, "Pediatric-related" specialties have the highest probabilities of diagnosis of diabetes.
+
+Combine these information with the medical specialty dataset, the "Diabetes_small".
+
+```{r,warning=FALSE}
+Diabetes_small2<-Diabetes_small2 %>% left_join(distribution, by="medical_specialty")
+```
+
+Although in the whole population, the majority of people would visit internal medicine and seek for help, but pediatricians actually held the highest diagnosis rate of diabetes. Whether there are some trend that masked by age groups? We could have a look at the specialty distribution respectively in young and adult age groups. 
+
+Split the dataset into children (age<20) and adults (age>=20).
+
+```{r,warning=FALSE}
+Young<-Diabetes_small2 %>% filter(ageind<=15)
+Young %>% group_by(medical_specialty) %>% 
+  summarise(n=n()) %>% 
+  arrange(desc(n)) %>% 
+  filter(n>15) %>% 
+  ggplot(aes(x=medical_specialty, y=n))+
+  geom_bar(stat="identity",aes(fill=factor(medical_specialty)))+
+  xlab("Medical Specialty")+
+  ylab("Number of Admission")+
+  ggtitle("Among Young Patients")+
+  theme(axis.text.x=element_text(angle = 45, hjust=1),legend.position="none")
+
+Adult<-Diabetes_small2 %>% filter(ageind>15)
+Adult %>% group_by(medical_specialty) %>% 
+  summarise(n=n()) %>% 
+  arrange(desc(n)) %>% 
+  filter(n>15) %>% 
+  ggplot(aes(x=medical_specialty, y=n))+
+  geom_bar(stat="identity",aes(fill=factor(medical_specialty)))+
+  xlab("medical specialty")+
+  ylab("number of admission")+
+  ggtitle("Among Adult Patients")+
+  theme(axis.text.x=element_text(angle = 45, hjust=1),legend.position="none")
+```
+
+In this dataset, there are 429 patients in young categories within whom the majority would visit pediatricians for first hospital admission. For the adults patients, however, we could see that they have a wider range of specialties, and most of them would choose to visit Internal Medicine. 
+
+<br />
+
+### 2.2 Distribution of Age among Diagnosis
+
+Since we have observed a significant discrepancy of specialty distribution between young and adult age groups, would there be other differences between these two groups? We then had a check of age distribution among admission and diabetes subtypes.
+
+```{r,warning=FALSE}
+# Check age distribution
+Diabetes_small2 %>% ggplot(aes(x=age))+
+  geom_bar(fill="skyblue")+
+  xlab("Age")+
+  ylab("Number of patients diagnosed as diabetes")+
+  ggtitle("Age Distribution for Patients Diagnosed with Diabetes")
+```
+
+From the plot we could see, the age of patients mostly fell into 40-80 categories, indicating a high visiting rate of patients among these age. 
+
+Among adults, we introduced a true age distribution of diabetes among adults in US based on CDC data in 2011 (http://www.cdc.gov/diabetes/statistics/age/fig1.htm)
+
+```{r,warning=FALSE}
+# Current dataset
+Adult3<-Adult %>% group_by(age) %>% summarise(n=n()) %>% mutate(hospital=(n/sum(n))*100)
+Adult3$reality<-c(4.3,11.3,19.8,29.6,23.3,11.8,NA,NA)
+Adult3 %>% gather("datasource","percentage",3:4) %>%
+  ggplot(aes(x=age,y=percentage,col=factor(datasource)))+
+  geom_line(aes(group=datasource))+
+  geom_point()+
+  xlab("Diabetes diagnosis age")+
+  ylab("Percentage of people")+
+  ggtitle("Age Distribution of Diagnosed Diabetes")
+```
+
+The plot showed the age distribution of diagnosed diabetes between our dataset and true statistics among US. Both data showed that people at age 50-60 would have highest risk of diabetes, and the risk would decrease significantly after age 70. Our data indicated a similar proportion of diabetes patients between age 40-70, while in whole US-wide we could observe a significant high risk of diabetes for people in age 50-60.
+
+<br />
+
+### 2.3 Association between Age and Diabetes Subtypes
+
+As we introduced above, there are mainly two diabetes subtypes. Since pediatricians would give the highest diagnosis rate, we had a look at the distribution of diabetes subtype within these pediatricians with top diagnosis rates (>60%)
+
+```{r,warning=FALSE}
+Diabetes_small3<-Diabetes_small2 %>% filter(diag_rate>0.60) %>% 
+  group_by(diab_type) %>% summarise(n_type=n()) %>% 
+  mutate(percentage=n_type/(sum(n_type)))
+Diabetes_small3
+
+# Create a pie chart to see the subtype distribution 
+Diabetes_small3 %>% ggplot(aes(x="",y=percentage,fill=factor(diab_type)))+
+  geom_bar(width=1,stat="identity")+
+  coord_polar(theta="y")+
+  scale_fill_manual(values=c("skyblue","grey"))+
+  theme(legend.background = element_rect(fill="skyblue",size=0.5,linetype="solid"))+
+  geom_text(aes(y=percentage,label=paste(round(percentage*100,2),"%")))+
+  ggtitle("Diabetes Subtypes Diagnosed by Pediatricians")
+```
+
+From the plot and table we could see, the majority diabetes diagnosed by pediatricians were Type I diabetes. The main reason that Pediatricians got the highest diagnosis rate for diabetes might be due to the disease characteristics. Type I diabetes is more likely to be confirmed at early age, which increases the possibility for children diagnosed with diabetes.
+
+Let's have a look at the subtype distribution among young and adult patients.
+
+```{r,warning=FALSE}
+Young$row <- 1:nrow(Young)
+Young2 <- Young %>% dplyr::select(row, diag_1, diag_rate, medical_specialty) %>% spread(medical_specialty, diag_1) 
+# d<-dist(as.matrix(Young2[,-c(1,2)]))
+# image(as.matrix(d),col="skyblue")
+
+Young %>% group_by(diab_type) %>% 
+  summarise(n_type=n()) %>% 
+  mutate(percentage=n_type/(sum(n_type))) %>%
+  ggplot(aes(x="",y=percentage,fill=factor(diab_type)))+
+  geom_bar(width=1,stat="identity")+
+  coord_polar(theta="y")+
+  scale_fill_manual(values=c("skyblue","grey"))+
+  theme(legend.background = element_rect(fill="skyblue",size=0.5,linetype="solid"))+
+  geom_text(aes(y=percentage,label=paste(round(percentage*100,2),"%")))+
+  ggtitle("Diabetes Subtypes Among Young Patients")
+```
+
+Consistent with the characteristics of diabetes, Type I is quite prevelant among young patients. 
+
+```{r,warning=FALSE}
+Adult$row<-1:nrow(Adult)
+Adult2<-Adult %>% dplyr::select(row, diag_1, diag_rate, medical_specialty) %>% spread(medical_specialty, diag_1) 
+# d<-dist(as.matrix(Adult2[,-c(1,2)]))
+# image(as.matrix(d),col="grey")
+
+Adult %>% group_by(diab_type) %>% 
+  summarise(n_type=n()) %>% 
+  mutate(percentage=n_type/(sum(n_type))) %>%
+  ggplot(aes(x="",y=percentage,fill=factor(diab_type)))+
+  geom_bar(width=1,stat="identity")+
+  coord_polar(theta="y")+
+  scale_fill_manual(values=c("skyblue","grey"))+
+  theme(legend.background = element_rect(fill="skyblue",size=0.5,linetype="solid"))+
+  geom_text(aes(y=percentage,label=paste(round(percentage*100,2),"%")))+
+  ggtitle("Diabetes Subtypes Among Adult Patients")
+```
+
+Compared with the results among young patients, there was a significant higher proportion of Type II diabetes among adult patients.
+
+In sum, young patients not only had a higher rate of diabetes diagnosis compared with adult patients, but they also have a signficiant higher rate of Type I diabetes based on the above analysis.
+
+From the above analysis we could see, age group would be the most significant factor associated with diabetes subtype. Then whether is any other factors that are correlated with such a result? We could have a check based on a simple regression model. 
+
+```{r,warning=FALSE}
+Diabetes_small2<-Diabetes_small2 %>% mutate(diab=1)
+Diabetes_small2$diab[(Diabetes_small2$diag_1*100)%%2==1]<-0
+table(Diabetes_small2$diab)
+```
+
+From the table shown above, there are overall 1223 Type I diabetes (coded as "0") and 3355 Type II diabetes (coded as "1").
+
+To analyze what factors would influence doctors diagnosis of the patients as specific subtype. Let's fit a logistic model with diabetes subtype as outcome.
+
+```{r,warning=FALSE}
+logit_type_1<-glm(diab~factor(race)+factor(gender)+factor(age)+num_lab_procedures+num_procedures+
+                   num_medications+number_diagnoses+factor(A1Cresult),
+                  data=Diabetes_small2,family="binomial")
+summary(logit_type_1)
+```
+
+The overall performance of our model is quite well, with most relevant covariates are significant. From the model we can see that age, number of lab procedures before diagnosis, number of procedures (other than lab tests) performed during the encounter are the three most significant factors that associated with diagnoses of subtypes of diabetes.
+
+Consistent with above plots, we observed a significantly higher incidence rate of Type I diabetes among young patients compared with adults.
+
+<br />
+
+## 3. Regression Analysis
+
+In this part we start focusing on patients diagnosis of diabetes and readmission characteristics in hospital. 
+
+### 3.1 Exploratory Analysis
+
+We are gonna create primary diagnosis indicator variable "dia_indicato",where '1' indicates diagnosis of diabetes, and '0' indicates other diseases. Also,we transform readmitted in to binary variable, where '1' if the patient was readmitted in less than 30 days, and '0' indicates other conditions.
+
+```{r,warning=FALSE}
+diabetes_pre <- Diabetes
+diabetes_pre[diabetes_pre == "?"] <- NA
+diabetes_pre$readmitted <- ifelse(diabetes_pre$readmitted == "<30",1,0)
+diabetes_pre$change <- ifelse(diabetes_pre$change == "Ch",1,0)
+diabetes_pre$diabetesMed <- ifelse(diabetes_pre$diabetesMed == "Yes",1,0)
+diabetes_pre$gender <- ifelse(diabetes_pre$gender == "Male",1,0)
+diabetes_pre$diag_1 <- as.numeric(diabetes_pre$diag_1)
+diabetes_pre <- diabetes_pre %>% mutate(icd9=floor(diag_1))
+diabetes_pre <- diabetes_pre %>% mutate(dia_indicator=ifelse((icd9==250),1,ifelse(!is.na(icd9),0,NA)))
+```
+
+#### (1) Distributions
+
+Here we checked distribution with several variables that we are interested in including patients diagnosis, readmission, and 24 features for medication. 
+
+```{r,warning=FALSE}
+ggplot(diabetes_pre, aes(x=readmitted)) +
+  geom_histogram(binwidth=.3, alpha=.5, position="identity", fill="skyblue2") +
+  ggtitle("Not Readmitted vs. Readmitted")
+ggplot(diabetes_pre, aes(x=dia_indicator)) +
+  geom_histogram(binwidth=.3, alpha=.5, position="identity", fill="skyblue2") +
+  ggtitle("Primary diagonosed as  vs. diagnosed")
+
+diabetes_pre_1 <- diabetes_pre %>%
+  dplyr::select(-weight,-encounter_id,-patient_nbr,-payer_code,-medical_specialty,-diag_1,-diag_2,-diag_3,-icd9)
+diabetes_pre_med <- diabetes_pre_1[,17:39]
+diabetes_pre_med_frame <- as.data.frame(diabetes_pre_med)
+col_names <- names(diabetes_pre_med_frame)
+diabetes_pre_med_frame[,col_names] <- lapply(diabetes_pre_med_frame[,col_names], factor)
+
+summary(diabetes_pre_med_frame)
+```
+
+As shown above, the majority of subjects in this study did not have readmission and were not primarily diagnosed with diabetes. The rates of two groups are about 9:1, which is acceptable.
+
+Also, 13 features in diabetes medications(chlorpropamide, acetohexamide, tolbutamide, acarbose, miglitol,troglitazone,tolazamide,examide,citoglipton,glyburide.metformin, glipizide.metformin, glimepiride.pioglitazone, metformin.rosiglitazone) are not informative, as there are only 1 level or 99% of the observation are in the same level. Therefore we exclude the features of medication in further regression models.
+
+#### (2) Correlation
+
+Checking for correlation between all the continuous variables(time in hospital,num_ lab procedures,num procedures,num medications,number outpatient,number emergency,number inpatient,number diagnoses).
+
+```{r,warning=FALSE}
+diabetes_pre_cont <- diabetes_pre_1[,7:14]
+c <- cor(diabetes_pre_cont)
+corrplot::corrplot(c, method="square")
+```
+
+From the plot above we could see, the variables are roughly independent with each other, with only a slightly higher correlation between $\text{time_in_hospital}$ and num_medications. Thus we would not consider collinearity in the following analysis and directly use the variables in fitting the model in the following analysis. 
+
+#### (3) Missing Pattern
+
+The following plot shows the missing value pattern for varaible with missing value (Weight, Race, Diag_1)
+
+```{r,warning=FALSE}
+diabetes_pre_2 <- diabetes_pre %>% dplyr::select(diag_1,weight,race) 
+mice_plot <- aggr(diabetes_pre_2, col=c('lightblue','pink'),
+                  numbers=TRUE, sortVars=TRUE,
+                  labels=names(diabetes_pre_2), cex.axis=.7,
+                  gap=3, ylab=c("Missing data","Pattern"))
+```
+As the missing rate for Weight is to high, we will exclude it in following analysis. We will still include variable Race and Diag_1, and assume they are missing at random.
+
+#### (4) Univariate Analysis
+
+We are focused on two major outcome in our dataset: Primary diagnosis and Hospital readmission. Before conducting statsitical analysis, here we're going to first examine the relationships we are interested in by data visualization.
+
+##### Outcome: Primary Dianosis
+
+We explore the relationship of between rate of primary diagnosis with patients race and age by the plots below:
+
+```{r,warning=FALSE}
+a_dia <- diabetes_pre %>% 
+  dplyr::select(dia_indicator,age) %>% 
+  dplyr::filter(!is.na(dia_indicator)) %>%
+  dplyr::group_by(age) %>% 
+  dplyr::summarise(p_a=sum(dia_indicator)/n())
+  
+a_dia %>% ggplot(aes(x=factor(age),y=p_a)) + 
+  geom_bar(stat="identity",aes(fill=factor(age))) + 
+  theme() + 
+  ggtitle("Rate of Primary Diagnosis by Age") +
+  xlab("Age")+
+  ylab("Rate of Primary Diagnosis") +
+  theme(axis.text.x=element_text(angle = 45, hjust=1),legend.position="none")
+
+r_dia <-diabetes_pre %>% 
+  dplyr::select(dia_indicator,race) %>% 
+  dplyr::filter(!is.na(dia_indicator)) %>%
+  group_by(race) %>% 
+  summarise(p_r=sum(dia_indicator)/n())
+
+r_dia %>% ggplot(aes(x=factor(race),y=p_r)) + 
+  geom_bar(stat="identity",aes(fill=factor(race))) + 
+  theme() + 
+  ggtitle("Rate of Primary Diagnosis by Race") +
+  xlab("Time in Hospital")+
+  ylab("Rate of Primary Diagnosis") +
+  theme(axis.text.x=element_text(angle = 30, hjust=1),legend.position="none")
+```
+
+Interestingly, we see that people aged between 0 and 10 have the highest proportion of having diabetes as primary diagnosis. As people getting older, the proportion decreases significantly and remains stable at the end.
+
+In terms of race, African Americans have the highest proportion. There seems to be no significant patterns among different races. I'm still gonna check the correlation later.
+
+##### Outcome: Hospital Readmission
+
+We explore the relationship of between rate of hospital readmission with patients age and time in hospital by the plots below:
+
+```{r,warning=FALSE}
+a<-diabetes_pre%>%dplyr::select(readmitted,age) %>% dplyr::group_by(age) %>% dplyr::summarise(p=sum(readmitted)/n())%>% ggplot(aes(x=age,y=p))
+a + geom_bar(stat="identity",aes(fill=factor(age)))  + theme() + 
+  ggtitle("Readmission Rate by Age") +
+  xlab("Age")+
+  ylab("Readmission Rate")
+
+t<-diabetes_pre%>%dplyr::select(readmitted,time_in_hospital) %>% group_by(time_in_hospital) %>% summarise(p=sum(readmitted)/n())%>% ggplot(aes(x=time_in_hospital,y=p))
+t + geom_bar(stat="identity",aes(fill=factor(time_in_hospital)))  + theme() + 
+  ggtitle("Readmission Rate by Time in Hospital") +
+  xlab("Time in Hospital")+
+  ylab("Readmission Rate")
+```
+
+As shown above, there seems no clean pattern in age in terms of getting readmitted to hospital within 30 days after a discharge. Also, the longer the patients stay in the hospital, it seems the more likely they will be readmitted. We will conduct further analysis later.
+
+<br />
+
+### 3.2 Diabetes Primary Diagnosis Prediction ###
+
+One of our main goals of this project is to analyze association between primary diagnosis of diabetes and some relevant covariates to make statistical inference. Through finding covariates that are correlated with primary diagnosis of diabetes, we are able to make better predictions to identify people who are abnormally anxious about their weight and obsessively think they have diabetes.
+
+#### (1) Data Preprocessing
+
+First of all, let's do some data preprocessing before the analysis.
+
+```{r,warning=FALSE}
+Diabetes$diag_1 <- as.numeric(Diabetes$diag_1)
+diabetes_dia <- tbl_df(Diabetes)
+
+# Race: transform all "?" to NAs; delete observations with "race==NA"
+diabetes_dia[diabetes_dia == "?"] <- NA
+diabetes_dia <- diabetes_dia %>% filter(!is.na(race))
+
+# Gender: delete observations with "gender!=Male/Female"
+diabetes_dia <- diabetes_dia %>% filter(gender=="Male" | gender=="Female")
+
+# Age: create a new age group (<40, 40-60, >60) (http://www.healthline.com/health/type-2-diabetes-age-of-onset#AverageAge2)
+diabetes_dia <- mutate(diabetes_dia, age_group = ifelse(age=="[0-10)" | age=="[10-20)" | age=="[20-30)" | age=="[30-40)",0,ifelse(age=="[40-50)" | age=="[50-60)",1,2)))
+
+# Primary Diagnosis: recode primary diagnosis, create "icd9"; create indicator for diagnosis of diabetes; delete NAs
+diabetes_dia <- diabetes_dia %>% mutate(icd9=floor(diag_1))
+diabetes_dia <- diabetes_dia %>% mutate(dia_indicator=ifelse(icd9==250,1,0))
+diabetes_dia <- diabetes_dia %>% filter(!is.na(dia_indicator))
+```
+
+We found that there are many columns that only have majority values. These covariates will not be "good" factors in our model. So let's clean up the data set and keep a few columns to keep things clear:
+
+```{r,warning=FALSE}
+# Only keep "encounter_id", "patient_nbr", "race", "gender", "age", "admission_type_id", "discharge_disposition_id", "admission_source_id", "time_in_hospital", "medical_specialty" "num_lab_procedures", "num_procedures", "num_medications", "diag_1", "diag_2", "diag_3", "number_diagnoses", "metformin", "glipizide", "glyburide", "insulin", "change", "readmitted", "ageind", "age_group", "icd9", "dia_indicator".
+diabetes_dia <- diabetes_dia %>% dplyr::select(encounter_id, patient_nbr, race, gender, age, admission_type_id, 
+                                discharge_disposition_id, admission_source_id, time_in_hospital, medical_specialty,
+                                num_lab_procedures, num_procedures, num_medications, diag_1, diag_2, diag_3, 
+                                number_diagnoses, metformin, glipizide, glyburide, insulin, change, readmitted,
+                                ageind, age_group, icd9, dia_indicator)
+```
+
+#### (2) Logistic Regression ####
+
+Now we have finished data preparation and start fitting model. Here we plan to fit a "full" model first, which contains all covariates that might affect the results of primary diagnosis. According to the descriptions of the variables, we could observe that although some variables were correlated with diagnosis of diabetes, they were actually the processes after first diagnose decision (eg. Discharge disposition, Time in hospital, Readmission, etc.). Including these variables in our model for primary diagnosis would only increase the risk of overfitting without make clinical sense. Thus we exclude these variables from our model and constructed more parsimonious models in later analysis.
+
+After excluding unnecessary variables based on subject knowledge, we need to decide the most appropriate form for variable age in our model. 
+
+ * Fit age as a factor
+
+```{r,warning=FALSE}
+# With all main covariates, age as factor
+regress_main1 <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+factor(age)+factor(admission_type_id)+
+                       factor(admission_source_id)+num_lab_procedures+num_procedures+num_medications+
+                       number_diagnoses+factor(metformin)+factor(glipizide)+factor(glyburide)+factor(insulin)+
+                       factor(change), family = binomial, data = diabetes_dia)
+AIC(regress_main1)
+```
+
+ * Fit age as a continuous variable
+
+```{r,warning=FALSE}
+## With all main covariates, continuous age
+regress_main2 <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+ageind+factor(admission_type_id)+
+                       factor(admission_source_id)+num_lab_procedures+num_procedures+num_medications+
+                       number_diagnoses+factor(metformin)+factor(glipizide)+factor(glyburide)+factor(insulin)+
+                       factor(change), family = binomial, data = diabetes_dia)
+AIC(regress_main2)
+```
+
+ * Fit age as categorical variable for below 40, 40-60, above 60. 
+
+```{r,warning=FALSE}
+## With all main covariates, age group: <40, 40-60, >60
+regress_main3 <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+factor(age_group)+
+                       factor(admission_type_id)+factor(admission_source_id)+num_lab_procedures+num_procedures+
+                       num_medications+number_diagnoses+factor(metformin)+factor(glipizide)+factor(glyburide)+
+                       factor(insulin)+factor(change), family = binomial, data = diabetes_dia)
+AIC(regress_main3)
+```
+
+The AICs of our three models are listed as follow:
+
+Model: Age | AIC
+-----------|-----
+factor | 49574.46
+continuous | 49878.84
+catrgorical | 50136.7
+
+From the above analysis results we could see, model with "age" as factor has the smallest AIC. This is consistent with previous literatures that age would usually be treated as a factor. Here in our following analysis we would use "factor(age)" in model fitting.
+
+After excluding unnecessary variables and selecting factor(age) as predictor, we conducted backward selection for the rest variables. Whole process were not fully shown in the output here since some parts were quite tedious and contains large blocks of codes. 
+
+Through selection, the final model was shown below.
+
+```{r,warning=FALSE}
+regress_main_final <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+factor(age)+
+                            factor(admission_type_id)+num_lab_procedures+num_procedures+num_medications+
+                            number_diagnoses+factor(glyburide)+factor(insulin)+factor(change), 
+                          family = binomial, data = diabetes_dia)
+summary(regress_main_final)
+```
+
+#### (3) Model Assessment: Train & Test
+
+##### GLM with a Random Split of Data 
+
+To check the performance of our model, let's split the data into two parts: train and test. Build a model based on the covariates in the final model shown above, and see how "accurate" our model is on prediction of the primary diagnosis of diabetes.
+
+```{r,warning=FALSE}
+set.seed(1)
+inTrain_1 <- createDataPartition(y=diabetes_dia$dia_indicator, p=0.8)
+glm_1_train <- slice(diabetes_dia, inTrain_1$Resample1)
+glm_1_test <- slice(diabetes_dia, -inTrain_1$Resample1)
+regress_train_1 <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+factor(age)+
+                            factor(admission_type_id)+num_lab_procedures+num_procedures+num_medications+
+                            number_diagnoses+factor(glyburide)+factor(insulin)+factor(change), 
+                          family = binomial, data = glm_1_train)
+pred_1 <- predict(regress_train_1, newdata=glm_1_test, type="response")
+compare_1 <- table(pred=round(pred_1), truth=glm_1_test$dia_indicator)
+conf_matrix_1 <- confusionMatrix(compare_1)
+conf_matrix_1$overall["Accuracy"]
+```
+
+We see that 92% of data are predicted correctly, which is really high. Is it by accident? To double check our model, let's go further and do a cross validation.
+
+##### GLM with Cross Validation, K=10 #####
+
+```{r,warning=FALSE}
+glm_accu_2 <- c()
+for (i in 1:10){
+  set.seed(i+1)
+  inTrain_2 <- createDataPartition(y=diabetes_dia$dia_indicator, p=0.8)
+  glm_2_train <- slice(diabetes_dia, inTrain_2$Resample1)
+  glm_2_test <- slice(diabetes_dia, -inTrain_2$Resample1)
+  regress_train_2 <- glm(formula = dia_indicator ~ factor(race)+factor(gender)+factor(age)+
+                          factor(admission_type_id)+num_lab_procedures+num_procedures+num_medications+
+                            number_diagnoses+factor(glyburide)+factor(insulin)+factor(change), 
+                          family = binomial, data = glm_2_train)
+  pred_2 <- predict(regress_train_2, newdata=glm_2_test, type="response")
+  compare_2 <- table(pred=round(pred_2), truth=glm_2_test$dia_indicator)
+  conf_matrix_2 <- confusionMatrix(compare_2)
+  conf_matrix_2$overall["Accuracy"]
+  glm_accu_2 <- append(glm_accu_2, conf_matrix_2$overall["Accuracy"])
+}
+range(glm_accu_2)
+```
+
+Again, the accuracy is between 91.75% and 92.24%, which demonstrates that the performance of our model is truly good.
+
+Thus, our final Logistic Regression model is
+$$
+Logit \left( Y_i \right) = \beta_0 + \beta_1 \times factor \left( \text{race} \right) + \beta_2 \times factor \left( \text{gender} \right) + \beta_3 \times factor \left( \text{age} \right) + \beta_4 \times factor \left( \text{admission type} \right) + \\
+\beta_5 \times \text{number of lab procedures} + \beta_6 \times \text{number of procedures} + \beta_7 \times \text{number of medications} + \beta_8 \times \text{number of diagnosis} + \\
+\beta_9 \times factor \left( \text{glyburide} \right) + \beta_{10} \times factor \left( \text{insulin} \right) + \beta_{11} \times factor \left( \text{change} \right)
+$$
+
+Before we move on, can we have a visual way for inspecting the performance of a binary classifier (0/1)? How about ROC? It compares the rate at which our model is making correct predictions (True Positives or TP) and the rate at which our model is making false alarms (False Positives or FP), which is a is relatively direct and natural way to assess model performance.
+
+Let's take a look.
+
+```{r,warning=FALSE}
+# Based on the first model we built in part (c)
+pred_compare_1 <- prediction(pred_1, glm_1_test$dia_indicator)
+perf_1 <- performance(pred_compare_1, measure = "tpr", x.measure = "fpr")
+auc_1 <- performance(pred_compare_1, measure = "auc")
+auc_1 <- auc_1@y.values[[1]]
+roc.data_1 <- data.frame(fpr=unlist(perf_1@x.values),tpr=unlist(perf_1@y.values),model="GLM")
+ggplot(roc.data_1, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2,fill="deepskyblue1") +
+  geom_line(aes(y=tpr),color="deepskyblue1") +
+  ggtitle(paste0("ROC Curve with AUC=", auc_1)) +
+  geom_abline(slope=1, intercept=0, colour="dodgerblue1")
+```
+
+#### (4) Summary ####
+
+According to our final model, we can draw conclusions for diabetes test for people with anxiety wonder if they truly have diabetes:
+
+1. Compared with other races, African Americans account for a higher proportion of having diabetes as primary diagnosis;  
+2. Males are more likely to be primarily diagnosed with diabetes than females;  
+3. It is interesting that people aged between 0 and 10 have the highest proportion of having diabetes as primary diagnosis. As we have shown before, young patients not only had a higher rate of diabetes diagnosis compared with adult patients, but they also have a signficiant higher rate of Type I diabetes based on the above analysis;  
+4. For adults (age>20), people aged between 20 to 30 have the highest proportion of having diabetes as primary diagnosis, while people aged between 90 and 100 have the lowest;  
+5. As people do more medical examinations (procedure, medication and diagnosis), the chance of having diabetes as primary diagnosis decreases. It makes sense because more examinations mean more uncertainty.  
+
+In summary, to precisely conduct diabetes test for people who are abnormally anxious about their weight and obsessively think they have diabetes, hospitals are suggested to focus mainly on race, sex, age, and the number of medical examinations. Instead of tracking those attributes, it is also correlated with admission type as well as blood glucose level.
+
+<br />
+
+### 3.3 Diabetes Readmission Prediction ###
+
+We are also interested in readmission, which is the hospitalization that occurs within 30 days after a discharge, and it's association with other variables in our dataset. Readmission is an important factor both in terms of hospital operation and diabetes treatment for patients. The analysis of readmission will help to reduce operation cost, and identify people who are at higher risk of rehospitalization. We are going to build a prediction model for readmission based on our data.
+
+#### (1) Data Cleaning ####
+
+As the missing percantage for all the variables are pretty low, we select 20 variables excluding medications from the original dataset and omitted NAs. There'are 97866 observations and 20 variables in the 'clean' dataset.
+
+```{r,warning=FALSE}
+diabetes_re <- diabetes_pre %>% dplyr::select(readmitted,race,gender,age, dia_indicator, admission_type_id,discharge_disposition_id,admission_source_id,time_in_hospital,num_lab_procedures,num_procedures,num_medications,number_outpatient,number_emergency,number_inpatient,number_diagnoses,max_glu_serum, A1Cresult, change,diabetesMed) 
+
+clean <- na.omit(diabetes_re)
+dim(clean)
+```
+
+#### (2) Variable Selection
+
+##### Full Model
+
+We first fit a basic logistic regression model using all the variables excluding features of meidication, and set readmmision as binary outcome.
+
+$$
+Logit \left( Y_i \right) = \beta_0 + \beta_1 \times factor \left( \text{dia_indicator} \right) + \beta_2 \times factor \left( \text{race} \right) + \beta_3 \times \text{gender} + \beta_4 \times factor \left( \text{age} \right) + \\
+\beta_5 \times factor \left( \text{admission_type_id} \right) + \beta_6 \times factor \left( \text{discharge_disposition_id} \right) + \beta_7 \times factor \left( \text{admission_source_id} \right) + \\
+\beta_8 \times \text{time_in_hospital} + \beta_9 \times \text{num_lab_procedures} + \beta_{10} \times \text{num_procedures} + \beta_{11} \times \text{num_medications} + \\
+\beta_{12} \times \text{number_outpatient} + \beta_{13} \times \text{number_emergency} + \beta_{14} \times \text{number_inpatient} + \beta_{15} \times \text{number_diagnoses} + \\
+\beta_{16} \times factor \left( \text{max_glu_serum} \right) + \beta_{17} \times factor \left( \text{A1Cresult} \right) + \beta_{18} \times factor \left( \text{diabetesMed} \right) + \beta_{19} \times factor \left( \text{change} \right)
+$$
+
+```{r,warning=FALSE}
+fit <- glm(readmitted~factor(dia_indicator)+factor(race)+gender+factor(age)+factor(admission_type_id)+
+             factor(discharge_disposition_id)+factor(admission_source_id)+time_in_hospital+num_lab_procedures+
+             num_procedures+num_medications+number_outpatient+number_emergency+number_inpatient+number_diagnoses+
+             factor(max_glu_serum)+factor(A1Cresult)+factor(diabetesMed)+factor(change),
+           data = clean,family = "binomial")
+
+
+t1<-tidy(fit)
+t1%>% dplyr::select(term,estimate,p.value)
+```
+
+As shown above, some variables are not significant at 0.05 level. We will use some variable selection techiniques to choose the best model.
+
+##### Backward Selection
+
+We select the model using backward selection algorithem based on AIC. We omitted the R autoselection process here and results are shown below. 12 Variables are selected.
+
+```{r,warning=FALSE}
+fit1 <- glm(readmitted~gender+factor(age)+factor(admission_type_id)+factor(discharge_disposition_id)+time_in_hospital+num_lab_procedures+num_medications+number_emergency+
+              number_inpatient+number_diagnoses+factor(max_glu_serum)+factor(A1Cresult)+factor(diabetesMed), 
+            data = clean,family = "binomial")
+t2<-tidy(fit1)
+t2%>% dplyr::select(term,estimate,p.value)
+```
+
+##### LASSO
+
+LASSO (least absolute shrinkage and selection operator) is a regression analysis method that performs both variable selection and regularization in order to enhance the prediction accuracy and interpretability of the statistical model it produces.
+
+Glmnet is a package that fits a generalized linear model via penalized maximum likelihood. The regularization path is computed for the lasso or elasticnet penalty at a grid of values for the regularization parameter $\lambda$. The algorithm is extremely fast, and can exploit sparsity in the input matrix x. A variety of predictions can be made from the fitted models. 
+
+```{r,warning=FALSE}
+clean$race<-as.factor(clean$race)
+clean$age<-as.factor(clean$age)
+clean$dia_indicator<-as.factor(clean$dia_indicator)
+clean$gender<-as.factor(clean$gender)
+clean$admission_type_id<-as.factor(clean$admission_type_id)
+clean$discharge_disposition_id<-as.factor(clean$discharge_disposition_id)
+clean$admission_source_id<-as.factor(clean$admission_source_id)
+clean$max_glu_serum<-as.factor(clean$max_glu_serum)
+clean$A1Cresult<-as.factor(clean$A1Cresult)
+clean$diabetesMed<-as.factor(clean$diabetesMed)
+clean$change<-as.factor(clean$change)
+pred.clean <- cbind(clean$race,clean$gender,clean$age, clean$dia_indicator, clean$admission_type_id,clean$discharge_disposition_id, clean$admission_source_id,clean$time_in_hospital,clean$num_lab_procedures,clean$num_procedures,clean$num_medications,clean$number_outpatient,clean$number_emergency,clean$number_inpatient,clean$number_diagnoses,clean$max_glu_serum, clean$A1Cresult, clean$change,clean$diabetesMed)
+glmmod<-glmnet(pred.clean,clean$readmitted,alpha=1,family='binomial')
+```
+
+The following plot shows the coefficients for the variables at different $\lambda$ value
+
+```{r,warning=FALSE}
+plot(glmmod,xvar="lambda",label = TRUE)
+grid()
+```
+
+Uses AUC(area under the ROC curve) as the criterion for 10-fold cross-validation.
+We here plot and show the optimal values of $\lambda$.
+It includes the cross-validation curve (red dotted line), and upper and lower standard deviation curves along the $\lambda$ sequence (error bars). Two selected $\lambda$'s are indicated by the vertical dotted lines.
+
+```{r,warning=FALSE}
+cvfit = cv.glmnet(pred.clean,clean$readmitted, family = "binomial", type.measure = "auc")
+plot(cvfit)
+```
+
+**lambda.min** is the value of $\lambda$ that gives minimum mean cross-validated error. The other $\lambda$ saved is **lambda.1se**, which gives the most regularized model such that error is within one standard error of the minimum.
+
+```{r,warning=FALSE}
+cat("lambda.min is",cvfit$lambda.min)
+cat("lambda.1se is",cvfit$lambda.1se)
+```
+
+Following are the coefficients selected based on "lambda.min" and "lambda.1se".
+
+```{r,warning=FALSE}
+coef(cvfit, s = "lambda.min")
+coef(cvfit, s = "lambda.1se")
+```
+
+Model using **lambda.min** select 9 variables: age, discharge disposition id, time in hospital,number procedures,number medications,number emergency,number inpatient,number diagnoses, diabetesMed.
+<br />
+
+Model using **lambda.1se** select 6 variables:discharge disposition id, time in hospital,number medications,number inpatient,number diagnoses, diabetesMed.
+<br />
+
+Model(lambda.min) | Model(lambda.1se)
+------------------|-------------------
+age | discharge_disposition_id
+discharge_disposition_id | time_in_hospital
+time_in_hospital | number_medications
+number_procedures | number_inpatient
+number_medications | number_diagnoses
+number_emergency | diabetesMed
+number_inpatient | -
+number_diagnoses | - 
+diabetesMed | -
+
+
+Further predictions can be made based on the fitted cv.glmnet models.
+<br />
+
+#### (3) Model Assessment: Train and Test
+
+To further assess the model, we split the dataset in to Train(80%) and Test(20%)
+
+```{r,warning=FALSE}
+set.seed(1)
+inTrain_1 <- createDataPartition(y=clean$readmitted, p=0.8)
+glm_1_train <- slice(clean, inTrain_1$Resample1)
+glm_1_test <- slice(clean, -inTrain_1$Resample1)
+```
+
+##### (a) Accuracy
+To see how "accurate" our models are predicting the hospital readmission of diabetes, we are going to calculate the percentage the data that is predicted correctly in test dataset.
+##### Model using backward selection
+
+```{r,warning=FALSE}
+regress_train_1 <- glm(formula = readmitted~gender+factor(age)+factor(admission_type_id)+
+                         factor(discharge_disposition_id)+time_in_hospital+
+                         num_lab_procedures+num_medications+number_emergency+number_inpatient+
+                         number_diagnoses+factor(max_glu_serum)+factor(A1Cresult)+factor(diabetesMed),
+                       family = binomial, data = glm_1_train); 
+
+id <- which(!(glm_1_test$admission_source_id %in% levels(glm_1_train$admission_source_id)))
+glm_1_test$admission_source_id[id] <- NA
+
+pred_1 <- predict(regress_train_1, newdata=glm_1_test, type="response")
+compare_1 <- table(pred=round(pred_1), truth=glm_1_test$readmitted)
+conf_matrix_1 <- confusionMatrix(compare_1)
+a1<-conf_matrix_1$overall["Accuracy"]
+
+cat("Accuracy on the test set using Model 1 is", a1)
+
+accu_results <- bind_rows(data_frame(method="Model using backward selection",Accuracy=a1))
+
+```
+
+##### Model using LASSO
+
+```{r,warning=FALSE}
+pred.train <- cbind(glm_1_train$race,glm_1_train$gender,glm_1_train$age, glm_1_train$dia_indicator, glm_1_train$admission_type_id,glm_1_train$discharge_disposition_id, glm_1_train$admission_source_id,glm_1_train$time_in_hospital,glm_1_train$num_lab_procedures,glm_1_train$num_procedures,glm_1_train$num_medications,glm_1_train$number_outpatient,glm_1_train$number_emergency,glm_1_train$number_inpatient,glm_1_train$number_diagnoses,glm_1_train$max_glu_serum, glm_1_train$A1Cresult, glm_1_train$change,glm_1_train$diabetesMed)
+
+pred.test <- cbind(glm_1_test$race,glm_1_test$gender,glm_1_test$age, glm_1_test$dia_indicator, glm_1_test$admission_type_id,glm_1_test$discharge_disposition_id, glm_1_test$admission_source_id,glm_1_test$time_in_hospital,glm_1_test$num_lab_procedures,glm_1_test$num_procedures,glm_1_test$num_medications,glm_1_test$number_outpatient,glm_1_test$number_emergency,glm_1_test$number_inpatient,glm_1_test$number_diagnoses,glm_1_test$max_glu_serum, glm_1_test$A1Cresult, glm_1_test$change,glm_1_test$diabetesMed)
+
+cv.glmmod.t <- cv.glmnet(pred.train,glm_1_train$readmitted,alpha=1,family='binomial', type.measure="auc")
+
+pred_2 <- predict(cv.glmmod.t$glmnet.fit, s=cv.glmmod.t$lambda.min, type = "response",newx=pred.test)
+compare_2 <- table(pred=round(pred_2), truth=glm_1_test$readmitted)
+conf_matrix_2 <- confusionMatrix(compare_2)
+a2<-conf_matrix_2$overall["Accuracy"]
+
+cat("Accuracy on the test set using Model 2 is", a2)
+
+accu_results <- bind_rows(accu_results,
+                          data_frame(method="Model using LASSO lambda.min",  
+                           Accuracy=a2))
+
+pred_3 <- predict(cv.glmmod.t$glmnet.fit, s=cv.glmmod.t$lambda.1se, type="response",newx=pred.test)
+compare_3 <- table(pred=round(pred_3), truth=glm_1_test$readmitted)
+conf_matrix_3 <- confusionMatrix(compare_3)
+a3<-conf_matrix_3$overall["Accuracy"]
+
+cat("Accuracy on the test set using Model 3 is", a3)
+
+accu_results <- bind_rows(accu_results,
+                          data_frame(method="Model using LASSO lambda.1se",  
+                           Accuracy=a3))
+accu_results
+```
+
+##### (b) AUC
+
+We also use ROC curve and AUC to assess and compare the three models.
+
+Receiver Operating Characteristic curve (or ROC curve) is a plot of the true positive rate against the false positive rate for the different possible cutpoints of a diagnostic test.
+
+##### Model using backward selection
+
+```{r,warning=FALSE}
+pred_compare_1 <- prediction(pred_1, glm_1_test$readmitted)
+perf_1 <- performance(pred_compare_1, measure = "tpr", x.measure = "fpr")
+auc_1 <- performance(pred_compare_1, measure = "auc")
+auc_1 <- auc_1@y.values[[1]]
+roc.data_1 <- data.frame(fpr=unlist(perf_1@x.values),tpr=unlist(perf_1@y.values),model="GLM")
+ggplot(roc.data_1, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2,fill="deepskyblue1") +
+  geom_line(aes(y=tpr),color="deepskyblue1") +
+  ggtitle(paste0("ROC Curve for Model 1")) +
+  geom_abline(slope=1, intercept=0, colour="dodgerblue1")
+compare <- bind_rows(data_frame(method="Model by backward selection",Accuracy=a1, AUC=auc_1))
+
+
+```
+
+##### Model using LASSO
+
+```{r,warning=FALSE}
+pred_compare_2 <- prediction(pred_2, glm_1_test$readmitted)
+perf_2 <- performance(pred_compare_2, measure = "tpr", x.measure = "fpr")
+auc_2 <- performance(pred_compare_2, measure = "auc")
+auc_2 <- auc_2@y.values[[1]]
+roc.data_2 <- data.frame(fpr=unlist(perf_2@x.values),tpr=unlist(perf_2@y.values),model="GLM")
+ggplot(roc.data_2, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2,fill="green") +
+  geom_line(aes(y=tpr),color="green") +
+  ggtitle(paste0("ROC Curve for Model 2")) +
+  geom_abline(slope=1, intercept=0, colour="lightgreen")
+compare <- bind_rows(compare, data_frame(method="Model using LASSO lambda.min",Accuracy=a2, AUC=auc_2))
+
+
+pred_compare_3 <- prediction(pred_3, glm_1_test$readmitted)
+perf_3 <- performance(pred_compare_1, measure = "tpr", x.measure = "fpr")
+auc_3 <- performance(pred_compare_1, measure = "auc")
+auc_3 <- auc_3@y.values[[1]]
+roc.data_3 <- data.frame(fpr=unlist(perf_3@x.values),tpr=unlist(perf_3@y.values),model="GLM")
+ggplot(roc.data_3, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2,fill="red") +
+  geom_line(aes(y=tpr),color="red") +
+  ggtitle(paste0("ROC Curve for Model 3")) +
+  geom_abline(slope=1, intercept=0, colour="indianred1")
+compare <- bind_rows(compare, data_frame(method="Model using LASSO lambda.1se",Accuracy=a3, AUC=auc_3))
+
+compare
+
+```
+As shown above, the ROC curve for the three models are very similar, and the curves are not very close to the 45-degree diagonal of the ROC space. The Model 3(Model using LASSO lambda.1se) has the highest AUC and overall accuracy. Although the AUC is around 67%, it's pretty near to the 70% thershhold, and we think the model is acceptable considering the high accuracy rate.
+<br />
+
+#### (4) Summary
+Comparing model fitting accuracy, AUC, and based on subject matter knowledge, our final model is the Logistic LASSO Model using lambda.1se, which gives the most regularized model such that error is within one standard error of the minimum.
+
+
+Final Model | Coefficient
+------------------|-------------------
+Discharge disposition id | 0.0145036521
+Time in hospital | 0.0073306771
+Number of medications | 0.0001069311
+Number of inpatient | 0.2480828375
+Number of diagnoses | 0.0243765346
+diabetesMed | 0.0225779270
+
+
+We found out that whether a patient would be readmitted is closely related to Discharge disposition, Time in hospital, Number of distinct medications, Number of inpatient visits of the patient in the year preceding the encounter, Number of diagnoses and whether Diabetes Medications is prescribed.
+<br />
+
+```{r,warning=FALSE}
+d<-clean%>%dplyr::select(readmitted,discharge_disposition_id) %>% group_by(discharge_disposition_id) %>% summarise(p=sum(readmitted)/n())%>% ggplot(aes(x=discharge_disposition_id,y=p))
+d + geom_bar(stat="identity",aes(fill=factor(discharge_disposition_id))) + theme() + 
+  ggtitle("Number of Readmission by discharge_disposition_id") +
+  xlab("discharge_disposition_id")+
+  ylab("Readmission Rate")
+
+i<-clean%>%dplyr::select(readmitted,number_inpatient) %>% group_by(number_inpatient) %>% summarise(p=sum(readmitted)/n())%>% ggplot(aes(x=number_inpatient,y=p))
+i + geom_bar(stat="identity",aes(fill=factor(number_inpatient)))  + theme() + 
+  ggtitle("Number of Readmission by number of inpatient") +
+  xlab("number_inpatient")+
+  ylab("Readmission Rate")
+```
+
+It turns out that patients with discharge dispostion id 9, which is "Admitted as an inpatient to this hospital before" has highest rate of readmission. We also found out the same trend that number of inpatient visits potentially increases the risk of readmission. Patients with more than 15 inpatient visit to the hospital are 100% readmitted to the hospital within 30 days.
+  
+In order to decrease the readmission rate and avoid unexpected costs, hospitals are suggested to concern more about the patients with inpatient visits history,after discharge conditions and number of medication prescribed.
+
+<br />
+
+## 4.Conclusion
+
+In this study, we investigated characteristics for US diabetes patients hospitalization. 
+
+Descriptive Analysis: from this part, we studied diabetes diagnosis with age distribution and physician specialty. The highest diabetes incidence fell in age category of 40-70, and among them, majority of patients would go to Internal Medicine for help at primary admission. To our surprise, pediatricians held the highest diagnosis rate for diabetes, and this could be due to early onset of Type I diabetes. For prediction of diabetes subtypes, age, number of tests before diagnosis, and number of procedures before encounter.
+
+Statistical Analysis:  
+Primary Diagnosis: to precisely conduct diabetes test for people who are abnormally anxious about their weight and obsessively think they have diabetes, hospitals are suggested to focus mainly on race, sex, age, and the number of medical examinations. Instead of tracking those attributes, it is also correlated with admission type as well as blood glucose level.  
+Readmission: we analyzed association between hospital readmission and relevant covariates,  and fit regression models to predict readmission. The results shows that in order to decrease the readmission rate and avoid expected costs, hospitals are suggested to concern more about the patients with inpatient visits history, after discharge conditions and number of medication prescribed.  
+
+<br />
+
+## 5.Reference
+  
+1. Glmnet Vignette, Trevor Hastie and Junyang Qian, Stanford June 26, 2014 (http://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html#intro)  
+2. Beata Strack, Jonathan P. DeShazo, Chris Gennings, Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records, Vol. 2014 (2014), Article ID 781670, 11 pages (http://www.hindawi.com/journals/bmri/2014/781670/)  
+3. P. Thangaraju, B. Deepa, T. Karthikeyan, Comparison of Data mining Techniques for Forecasting Diabetes Mellitus, Vol. 3, Issue 8, August 2014
+
+
